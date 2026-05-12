@@ -23,10 +23,11 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const keys = new Set();
 const pointer = { x: 640, y: 360, down: false };
 let viewScale = 1;
-let fatalError = false;
+let bootBlocked = false;
+let loopStopped = false;
 
-function showBootError(error) {
-  fatalError = true;
+function showBootError(error, blockGame = false) {
+  if (blockGame) bootBlocked = true;
   console.error(error);
   const message = error instanceof Error ? error.message : String(error);
   if (bootErrorText) {
@@ -36,11 +37,32 @@ function showBootError(error) {
 }
 
 if (!canvas || !ctx) {
-  showBootError(new Error('Canvas is not available in this browser view'));
+  showBootError(new Error('Canvas is not available in this browser view'), true);
 }
 
-window.addEventListener('error', event => showBootError(event.error || event.message));
-window.addEventListener('unhandledrejection', event => showBootError(event.reason || 'Unhandled promise rejection'));
+window.addEventListener('error', event => {
+  if (event.filename?.includes('src/game.js')) {
+    showBootError(event.error || event.message, true);
+  }
+});
+window.addEventListener('unhandledrejection', event => {
+  const stack = String(event.reason?.stack || event.reason || '');
+  if (stack.includes('src/game.js')) showBootError(event.reason, true);
+});
+
+function addButtonAction(button, action) {
+  if (!button) return;
+  const run = event => {
+    event?.preventDefault?.();
+    action();
+  };
+  button.addEventListener('click', run);
+  button.addEventListener('pointerup', run);
+  button.addEventListener('touchend', run, { passive: false });
+  button.addEventListener('keydown', event => {
+    if (event.code === 'Enter' || event.code === 'Space') run(event);
+  });
+}
 
 const zones = [
   { name: 'Lantern Meadow', hue: 170, goal: 80, enemies: 12, boss: 'Moss Tuba' },
@@ -110,7 +132,7 @@ function newPlayer() {
 }
 
 function resize() {
-  if (fatalError) return;
+  if (bootBlocked) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.floor(window.innerWidth * dpr);
   canvas.height = Math.floor(window.innerHeight * dpr);
@@ -121,7 +143,7 @@ function resize() {
 }
 
 function resetGame() {
-  if (fatalError) return;
+  if (bootBlocked) return;
   state.mode = 'playing';
   state.time = 0;
   state.zone = 0;
@@ -239,7 +261,7 @@ function enemyShoot(enemy) {
 }
 
 function update(dt) {
-  if (fatalError || state.mode !== 'playing') return;
+  if (bootBlocked || state.mode !== 'playing') return;
   state.time += dt;
   state.stats.minutes = Math.floor(state.time / 60);
   state.messageTimer = Math.max(0, state.messageTimer - dt);
@@ -489,7 +511,7 @@ function getCamera() {
 }
 
 function draw() {
-  if (fatalError) return;
+  if (bootBlocked) return;
   const w = window.innerWidth;
   const h = window.innerHeight;
   ctx.clearRect(0, 0, w, h);
@@ -755,7 +777,7 @@ function wrapText(text, x, y, maxWidth, lineHeight) {
 
 let last = performance.now();
 function loop(now) {
-  if (fatalError) return;
+  if (bootBlocked || loopStopped) return;
   try {
     const dt = Math.min(0.033, (now - last) / 1000);
     last = now;
@@ -763,7 +785,8 @@ function loop(now) {
     draw();
     requestAnimationFrame(loop);
   } catch (error) {
-    showBootError(error);
+    loopStopped = true;
+    showBootError(error, true);
   }
 }
 
@@ -777,14 +800,14 @@ canvas?.addEventListener('pointermove', event => { pointer.x = event.clientX; po
 canvas?.addEventListener('pointerdown', event => { pointer.down = true; pointer.x = event.clientX; pointer.y = event.clientY; });
 window.addEventListener('pointerup', () => { pointer.down = false; });
 
-startBtn.addEventListener('click', resetGame);
-restartBtn.addEventListener('click', resetGame);
-howBtn.addEventListener('click', () => howPanel.classList.remove('hidden'));
-closeHow.addEventListener('click', () => howPanel.classList.add('hidden'));
+addButtonAction(startBtn, resetGame);
+addButtonAction(restartBtn, resetGame);
+addButtonAction(howBtn, () => howPanel.classList.remove('hidden'));
+addButtonAction(closeHow, () => howPanel.classList.add('hidden'));
 
 try {
   resize();
   requestAnimationFrame(loop);
 } catch (error) {
-  showBootError(error);
+  showBootError(error, true);
 }
