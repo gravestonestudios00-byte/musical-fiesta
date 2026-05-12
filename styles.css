@@ -7,7 +7,9 @@
   --aqua: #66e6ff;
   --panel: rgba(13, 23, 48, 0.82);
   --panel-strong: rgba(11, 17, 34, 0.95);
+  --ui-scale: 1;
 }
+
 
 * { box-sizing: border-box; }
 
@@ -26,6 +28,7 @@ body {
 }
 
 button {
+  touch-action: manipulation;
   border: 0;
   border-radius: 999px;
   color: var(--ink);
@@ -77,7 +80,7 @@ button:focus-visible {
   left: 50%;
   top: 50%;
   width: min(780px, calc(100vw - 2rem));
-  padding: clamp(1.5rem, 4vw, 3rem);
+  padding: calc(clamp(1.5rem, 4vw, 3rem) * var(--ui-scale));
   transform: translate(-50%, -50%);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 2rem;
@@ -116,14 +119,14 @@ p { margin-top: 0; }
 
 h1 {
   margin-bottom: 1rem;
-  font-size: clamp(2.6rem, 7vw, 5.6rem);
+  font-size: calc(clamp(2.6rem, 7vw, 5.6rem) * var(--ui-scale));
   letter-spacing: -0.07em;
   line-height: 0.9;
 }
 
 h2 {
   margin-bottom: 1rem;
-  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  font-size: calc(clamp(1.6rem, 4vw, 2.6rem) * var(--ui-scale));
   letter-spacing: -0.05em;
 }
 
@@ -131,7 +134,7 @@ h2 {
   max-width: 62ch;
   margin: 0 auto 1.5rem;
   color: var(--muted);
-  font-size: clamp(1rem, 2.2vw, 1.18rem);
+  font-size: calc(clamp(1rem, 2.2vw, 1.18rem) * var(--ui-scale));
   line-height: 1.6;
 }
 
@@ -173,6 +176,51 @@ h2 {
   color: var(--muted);
   line-height: 1.45;
 }
+
+.panel-copy,
+.weapon-preview small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.menu-panel {
+  left: 1rem;
+  right: auto;
+}
+
+.setting-row,
+.weapon-preview {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 0.85rem;
+}
+
+.setting-row > span,
+.weapon-preview strong {
+  color: var(--gold);
+  font-weight: 900;
+}
+
+.weapon-preview span {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+
+.segmented button {
+  padding: 0.55rem 0.4rem;
+  font-size: 0.85rem;
+}
+
 
 .choice-panel {
   left: 50%;

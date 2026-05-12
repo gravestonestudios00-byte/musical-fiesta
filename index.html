@@ -22,10 +22,30 @@
         <div class="button-row">
           <button id="startBtn" class="primary" type="button">Start Campaign</button>
           <button id="howBtn" class="ghost" type="button">How to Play</button>
+          <button id="menuBtn" class="ghost" type="button">Game Menu</button>
         </div>
         <div class="quick-controls">
           <span>Move: WASD / arrows</span><span>Aim: mouse / touchpad</span><span>Dash: Space</span><span>Interact: E</span>
         </div>
+      </section>
+
+      <section id="menuPanel" class="overlay side-panel menu-panel hidden" aria-live="polite">
+        <h2>Game menu</h2>
+        <p class="panel-copy">Tune the HUD size, review weapons, and jump back into the festival. Press <b>M</b> or <b>Esc</b> in-game to reopen this menu.</p>
+        <div class="setting-row">
+          <span>HUD scale</span>
+          <div class="segmented">
+            <button class="scaleBtn ghost" type="button" data-scale="0.85">Small</button>
+            <button class="scaleBtn ghost" type="button" data-scale="1">Normal</button>
+            <button class="scaleBtn ghost" type="button" data-scale="1.18">Large</button>
+          </div>
+        </div>
+        <div class="weapon-preview">
+          <strong>Weapons</strong>
+          <span>1 Starbow • 2 Chakram • 3 Nova Beam • 4 Meteor Mortar</span>
+          <small>New weapons appear as relic rewards during the campaign.</small>
+        </div>
+        <button id="closeMenu" class="primary" type="button">Back to Game</button>
       </section>
 
       <section id="howPanel" class="overlay side-panel hidden" aria-live="polite">

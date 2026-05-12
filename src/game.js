@@ -4,6 +4,10 @@ const ctx = canvas?.getContext?.('2d');
 const startScreen = document.querySelector('#startScreen');
 const startBtn = document.querySelector('#startBtn');
 const howBtn = document.querySelector('#howBtn');
+const menuBtn = document.querySelector('#menuBtn');
+const menuPanel = document.querySelector('#menuPanel');
+const closeMenu = document.querySelector('#closeMenu');
+const scaleButtons = document.querySelectorAll('.scaleBtn');
 const howPanel = document.querySelector('#howPanel');
 const closeHow = document.querySelector('#closeHow');
 const levelUp = document.querySelector('#levelUp');
@@ -64,6 +68,13 @@ function addButtonAction(button, action) {
   });
 }
 
+const weaponCatalog = {
+  starbow: { name: 'Starbow', short: 'Bow', hue: 48, cooldown: 0.22, speed: 670, damage: 1, size: 6, life: 1.05, unlock: 'Always ready: balanced sparkle arrows.' },
+  chakram: { name: 'Comet Chakram', short: 'Ring', hue: 180, cooldown: 0.42, speed: 460, damage: 0.72, size: 10, life: 1.55, pierce: 3, unlock: 'Pierces crowds in a wide glowing arc.' },
+  beam: { name: 'Nova Beam', short: 'Beam', hue: 300, cooldown: 0.34, speed: 820, damage: 0.9, size: 4, life: 0.72, beam: true, unlock: 'Rapid laser notes for precise players.' },
+  mortar: { name: 'Meteor Mortar', short: 'Bomb', hue: 22, cooldown: 0.78, speed: 360, damage: 1.75, size: 12, life: 1.25, explosive: true, unlock: 'Slow arcing shots that burst on impact.' }
+};
+
 const zones = [
   { name: 'Lantern Meadow', hue: 170, goal: 80, enemies: 12, boss: 'Moss Tuba' },
   { name: 'Nimbus Orchard', hue: 205, goal: 105, enemies: 16, boss: 'Cloud Cymbal' },
@@ -76,6 +87,9 @@ const zones = [
 ];
 
 const relicPool = [
+  ['Comet Chakram', 'Unlock a piercing ring weapon. Press 2 to equip it.', s => unlockWeapon(s, 'chakram')],
+  ['Nova Beam', 'Unlock a fast laser-note weapon. Press 3 to equip it.', s => unlockWeapon(s, 'beam')],
+  ['Meteor Mortar', 'Unlock explosive meteor shells. Press 4 to equip it.', s => unlockWeapon(s, 'mortar')],
   ['Prism Bow', 'Sparks split into two glittering notes.', s => { s.player.multi += 1; }],
   ['Moon Sneakers', 'Move 16% faster and dash farther.', s => { s.player.speed *= 1.16; s.player.dashPower += 95; }],
   ['Tempo Heart', 'Gain a larger health pool and heal now.', s => { s.player.maxHp += 25; s.player.hp = s.player.maxHp; }],
@@ -96,6 +110,7 @@ const state = {
   message: 'Welcome to Chrono Grove!',
   projectiles: [],
   particles: [],
+  sailBits: [],
   enemies: [],
   pickups: [],
   flowers: [],
@@ -103,6 +118,8 @@ const state = {
   relics: [],
   stats: { defeated: 0, rescued: 0, minutes: 0 },
   quest: { sparks: 0, deposited: 0, defeated: 0, bossReady: false, bossDefeated: false },
+  transition: null,
+  uiScale: 1,
   player: null
 };
 
@@ -115,8 +132,10 @@ function newPlayer() {
     maxHp: 110,
     speed: 245,
     damage: 20,
-    fireRate: 0.22,
+    fireRate: 1,
     fireCooldown: 0,
+    weapon: 'starbow',
+    unlockedWeapons: ['starbow'],
     dashCooldown: 0,
     dashPower: 430,
     armor: 0,
@@ -130,6 +149,37 @@ function newPlayer() {
     xpNeed: 95
   };
 }
+
+function unlockWeapon(s, key) {
+  if (!s.player.unlockedWeapons.includes(key)) s.player.unlockedWeapons.push(key);
+  s.player.weapon = key;
+  const slot = Object.keys(weaponCatalog).indexOf(key) + 1;
+  s.message = `${weaponCatalog[key].name} unlocked! Press ${slot} to swap weapons.`;
+  s.messageTimer = 5;
+}
+
+function setUiScale(scale) {
+  state.uiScale = scale;
+  document.documentElement.style.setProperty('--ui-scale', scale);
+}
+
+function toggleMenu(forceOpen = null) {
+  const shouldOpen = forceOpen ?? menuPanel.classList.contains('hidden');
+  menuPanel.classList.toggle('hidden', !shouldOpen);
+}
+
+function equipWeapon(slot) {
+  if (!state.player) return;
+  const key = Object.keys(weaponCatalog)[slot - 1];
+  if (state.player.unlockedWeapons.includes(key)) {
+    state.player.weapon = key;
+    state.message = `${weaponCatalog[key].name} equipped.`;
+  } else {
+    state.message = `${weaponCatalog[key].name} is locked. Pick its relic to unlock it.`;
+  }
+  state.messageTimer = 2.4;
+}
+
 
 function resize() {
   if (bootBlocked) return;
@@ -149,20 +199,24 @@ function resetGame() {
   state.zone = 0;
   state.projectiles = [];
   state.particles = [];
+  state.sailBits = [];
   state.enemies = [];
   state.pickups = [];
   state.flowers = [];
   state.portals = [];
   state.relics = [];
   state.stats = { defeated: 0, rescued: 0, minutes: 0 };
+  state.transition = null;
   state.player = newPlayer();
   startScreen.classList.add('hidden');
   gameOver.classList.add('hidden');
   levelUp.classList.add('hidden');
+  menuPanel.classList.add('hidden');
   enterZone(0);
 }
 
 function enterZone(index) {
+  state.transition = null;
   state.zone = index;
   state.quest = { sparks: 0, deposited: 0, defeated: 0, bossReady: false, bossDefeated: false };
   state.player.x = 0;
@@ -225,18 +279,25 @@ function addParticles(x, y, hue, count, power = 1) {
 
 function shoot(angle, spread = 0) {
   const p = state.player;
-  for (let i = 0; i < p.multi; i += 1) {
-    const offset = (i - (p.multi - 1) / 2) * 0.14 + spread;
+  const weapon = weaponCatalog[p.weapon] || weaponCatalog.starbow;
+  const count = weapon.beam ? Math.max(1, p.multi + 1) : p.multi;
+  for (let i = 0; i < count; i += 1) {
+    const wave = weapon.explosive ? Math.sin(state.time * 8 + i) * 0.08 : 0;
+    const offset = (i - (count - 1) / 2) * (weapon.beam ? 0.055 : 0.14) + spread + wave;
     state.projectiles.push({
       x: p.x + Math.cos(angle + offset) * 24,
       y: p.y + Math.sin(angle + offset) * 24,
-      vx: Math.cos(angle + offset) * 670,
-      vy: Math.sin(angle + offset) * 670,
-      r: 6,
-      life: 1.05,
-      damage: p.damage,
+      vx: Math.cos(angle + offset) * weapon.speed,
+      vy: Math.sin(angle + offset) * weapon.speed,
+      r: weapon.size,
+      life: weapon.life,
+      damage: p.damage * weapon.damage,
       enemy: false,
-      hue: 48
+      hue: weapon.hue,
+      weapon: p.weapon,
+      pierce: weapon.pierce || 0,
+      explosive: !!weapon.explosive,
+      beam: !!weapon.beam
     });
   }
 }
@@ -261,8 +322,14 @@ function enemyShoot(enemy) {
 }
 
 function update(dt) {
-  if (bootBlocked || state.mode !== 'playing') return;
+  if (bootBlocked) return;
   state.time += dt;
+  if (state.mode === 'transition') {
+    updateSailTransition(dt);
+    updateParticles(dt);
+    return;
+  }
+  if (state.mode !== 'playing') return;
   state.stats.minutes = Math.floor(state.time / 60);
   state.messageTimer = Math.max(0, state.messageTimer - dt);
   state.shake = Math.max(0, state.shake - dt * 18);
@@ -286,7 +353,8 @@ function update(dt) {
   const aim = screenToWorld(pointer.x, pointer.y);
   if ((pointer.down || state.time % 0.5 < dt) && p.fireCooldown <= 0) {
     shoot(Math.atan2(aim.y - p.y, aim.x - p.x));
-    p.fireCooldown = p.fireRate;
+    const weapon = weaponCatalog[p.weapon] || weaponCatalog.starbow;
+    p.fireCooldown = weapon.cooldown * p.fireRate;
   }
 
   if (keys.has('Space') && p.dashCooldown <= 0) {
@@ -303,6 +371,42 @@ function update(dt) {
   updatePickups(dt);
   updateParticles(dt);
   updateQuest();
+}
+
+function updateSailTransition(dt) {
+  const transition = state.transition;
+  if (!transition) return;
+  transition.t += dt;
+  const p = state.player;
+  const progress = clamp(transition.t / transition.duration, 0, 1);
+  const orbit = transition.t * 6;
+  p.x = Math.cos(orbit) * (80 + progress * 280);
+  p.y = -progress * 520 + Math.sin(orbit * 0.7) * 80;
+  state.shake = Math.max(state.shake, Math.sin(progress * Math.PI) * 8);
+  for (let i = 0; i < 8; i += 1) {
+    state.sailBits.push({
+      x: p.x + rand(-44, 44),
+      y: p.y + rand(18, 74),
+      vx: rand(-70, 70),
+      vy: rand(80, 180),
+      life: rand(0.45, 0.9),
+      max: 0.9,
+      hue: zones[transition.from].hue + rand(-20, 40),
+      size: rand(2, 8)
+    });
+  }
+  if (progress >= 1) enterZone(transition.to);
+}
+
+function startSailTransition(nextZone) {
+  state.mode = 'transition';
+  state.transition = { from: state.zone, to: nextZone, t: 0, duration: 3.2 };
+  state.message = `Sailing to ${zones[nextZone].name}...`;
+  state.messageTimer = 3.2;
+  state.projectiles = [];
+  state.enemies = [];
+  state.pickups = [];
+  addParticles(state.player.x, state.player.y, zones[state.zone].hue, 80, 1.6);
 }
 
 function updateProjectiles(dt) {
@@ -325,14 +429,34 @@ function updateProjectiles(dt) {
         if (dist(shot, enemy) < shot.r + enemy.r) {
           enemy.hp -= shot.damage;
           addParticles(shot.x, shot.y, enemy.hue, 5);
-          state.projectiles.splice(i, 1);
-          if (enemy.hp <= 0) defeatEnemy(enemy, j);
+          if (shot.explosive) explodeShot(shot);
+          if (shot.pierce > 0) {
+            shot.pierce -= 1;
+          } else {
+            state.projectiles.splice(i, 1);
+          }
+          if (enemy.hp <= 0 && state.enemies[j] === enemy) defeatEnemy(enemy, j);
           break;
         }
       }
     }
 
-    if (shot.life <= 0) state.projectiles.splice(i, 1);
+    if (shot.life <= 0) {
+      if (shot.explosive && !shot.enemy) explodeShot(shot);
+      state.projectiles.splice(i, 1);
+    }
+  }
+}
+
+function explodeShot(shot) {
+  addParticles(shot.x, shot.y, shot.hue, 28, 1.2);
+  for (let i = state.enemies.length - 1; i >= 0; i -= 1) {
+    const enemy = state.enemies[i];
+    const d = dist(shot, enemy);
+    if (d < 120) {
+      enemy.hp -= shot.damage * (1 - d / 140);
+      if (enemy.hp <= 0) defeatEnemy(enemy, i);
+    }
   }
 }
 
@@ -399,6 +523,13 @@ function updatePickups(dt) {
 }
 
 function updateParticles(dt) {
+  for (let i = state.sailBits.length - 1; i >= 0; i -= 1) {
+    const bit = state.sailBits[i];
+    bit.x += bit.vx * dt;
+    bit.y += bit.vy * dt;
+    bit.life -= dt;
+    if (bit.life <= 0) state.sailBits.splice(i, 1);
+  }
   for (let i = state.particles.length - 1; i >= 0; i -= 1) {
     const bit = state.particles[i];
     bit.x += bit.vx * dt;
@@ -429,7 +560,7 @@ function updateQuest() {
   }
   if (state.quest.bossDefeated && dist(state.player, state.portals[0]) < 95 && keys.has('KeyE')) {
     if (state.zone === zones.length - 1) finish(true);
-    else enterZone(state.zone + 1);
+    else startSailTransition(state.zone + 1);
   }
 }
 
@@ -475,7 +606,9 @@ function damagePlayer(amount) {
 
 function showRelicChoices() {
   choices.innerHTML = '';
-  const shuffled = [...relicPool].sort(() => Math.random() - 0.5).slice(0, 3);
+  const weaponRelicKeys = { 'Comet Chakram': 'chakram', 'Nova Beam': 'beam', 'Meteor Mortar': 'mortar' };
+  const available = relicPool.filter(relic => !weaponRelicKeys[relic[0]] || !state.player.unlockedWeapons.includes(weaponRelicKeys[relic[0]]));
+  const shuffled = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
   for (const relic of shuffled) {
     const button = document.createElement('button');
     button.className = 'choice-card';
@@ -525,6 +658,7 @@ function draw() {
   drawWorld();
   ctx.restore();
   drawHud(w, h);
+  drawSailOverlay(w, h);
 }
 
 function drawWorld() {
@@ -557,6 +691,7 @@ function drawWorld() {
   for (const enemy of state.enemies) drawEnemy(enemy);
   drawPlayer();
   for (const bit of state.particles) drawParticle(bit);
+  for (const bit of state.sailBits) drawParticle(bit);
 }
 
 function drawBeacon(zone) {
@@ -669,11 +804,29 @@ function drawPickup(item) {
 
 function drawShot(shot) {
   ctx.save();
-  ctx.shadowBlur = 16;
+  ctx.translate(shot.x, shot.y);
+  ctx.rotate(Math.atan2(shot.vy, shot.vx));
+  ctx.shadowBlur = shot.beam ? 26 : 16;
   ctx.shadowColor = `hsl(${shot.hue} 95% 64%)`;
   ctx.fillStyle = `hsl(${shot.hue} 95% 64%)`;
   ctx.beginPath();
-  ctx.arc(shot.x, shot.y, shot.r, 0, TAU);
+  if (shot.beam) {
+    if (ctx.roundRect) ctx.roundRect(-shot.r * 3, -shot.r / 2, shot.r * 8, shot.r, shot.r / 2);
+    else ctx.rect(-shot.r * 3, -shot.r / 2, shot.r * 8, shot.r);
+  } else if (shot.explosive) {
+    ctx.moveTo(shot.r, 0);
+    for (let i = 1; i < 8; i += 1) {
+      const a = i * TAU / 8;
+      const r = i % 2 ? shot.r * 0.55 : shot.r;
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+  } else if (shot.pierce) {
+    ctx.arc(0, 0, shot.r, 0, TAU);
+    ctx.moveTo(shot.r * 1.5, 0);
+    ctx.arc(0, 0, shot.r * 1.5, 0, TAU);
+  } else {
+    ctx.arc(0, 0, shot.r, 0, TAU);
+  }
   ctx.fill();
   ctx.restore();
 }
@@ -689,9 +842,14 @@ function drawParticle(bit) {
 
 function drawHud(w, h) {
   if (!state.player) return;
+  ctx.save();
+  ctx.scale(state.uiScale, state.uiScale);
+  w /= state.uiScale;
+  h /= state.uiScale;
   const p = state.player;
   const zone = zones[state.zone];
-  panel(18, 18, 390, 142);
+  const weapon = weaponCatalog[p.weapon] || weaponCatalog.starbow;
+  panel(18, 18, 390, 166);
   bar(38, 45, 250, 16, p.hp / p.maxHp, '#ff6f91', 'Health');
   bar(38, 82, 250, 12, p.xp / p.xpNeed, '#66e6ff', `Level ${p.level}`);
   bar(38, 114, 250, 12, state.quest.deposited / zone.goal, '#ffd36b', 'Beacon');
@@ -703,15 +861,18 @@ function drawHud(w, h) {
   ctx.fillText(`Sparks held: ${Math.floor(state.quest.sparks)} / Need: ${zone.goal}`, 310, 85);
   ctx.fillText(`Sentinels: ${state.quest.defeated}/${zone.enemies}`, 310, 108);
   ctx.fillText(`Groves: ${state.stats.rescued}/${zones.length}`, 310, 131);
+  ctx.fillText(`Weapon: ${weapon.name}`, 38, 150);
 
-  panel(w - 275, 18, 255, 98);
+  panel(w - 315, 18, 295, 126);
   ctx.fillStyle = '#edf4ff';
   ctx.font = '800 16px system-ui';
-  ctx.fillText('Relics', w - 252, 48);
+  ctx.fillText('Weapons & Relics', w - 292, 48);
   ctx.fillStyle = '#b7c6e8';
   ctx.font = '700 12px system-ui';
-  const relicText = state.relics.slice(-4).join(' • ') || 'Level up to choose relics';
-  wrapText(relicText, w - 252, 72, 212, 16);
+  const weaponText = Object.keys(weaponCatalog).map((key, index) => `${index + 1}:${p.unlockedWeapons.includes(key) ? weaponCatalog[key].short : 'Lock'}`).join('  ');
+  ctx.fillText(weaponText, w - 292, 72);
+  const relicText = state.relics.slice(-3).join(' • ') || 'Level up to choose relics';
+  wrapText(relicText, w - 292, 96, 252, 16);
 
   if (state.messageTimer > 0) {
     panel(w / 2 - 330, h - 92, 660, 58);
@@ -729,6 +890,37 @@ function drawHud(w, h) {
     ctx.fillText('Return to the beacon and press E to sail onward', w / 2, 42);
     ctx.textAlign = 'left';
   }
+  ctx.restore();
+}
+
+function drawSailOverlay(w, h) {
+  if (state.mode !== 'transition' || !state.transition) return;
+  const progress = clamp(state.transition.t / state.transition.duration, 0, 1);
+  ctx.save();
+  const glow = ctx.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, Math.max(w, h));
+  glow.addColorStop(0, `hsla(${zones[state.transition.to].hue}, 95%, 62%, ${0.16 + progress * 0.12})`);
+  glow.addColorStop(1, `rgba(2, 6, 18, ${0.28 + Math.sin(progress * Math.PI) * 0.32})`);
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, h);
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(progress * TAU * 1.2);
+  ctx.strokeStyle = `hsla(${zones[state.transition.to].hue}, 95%, 70%, 0.75)`;
+  ctx.lineWidth = 5;
+  for (let i = 0; i < 4; i += 1) {
+    ctx.beginPath();
+    ctx.arc(0, 0, 90 + i * 55 + Math.sin(state.time * 8 + i) * 8, progress * TAU, progress * TAU + Math.PI * 1.1);
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#edf4ff';
+  ctx.font = `900 ${Math.max(22, 34 * state.uiScale)}px system-ui`;
+  ctx.fillText(`Sailing to ${zones[state.transition.to].name}`, w / 2, h * 0.24);
+  ctx.fillStyle = '#ffd36b';
+  ctx.font = `800 ${Math.max(14, 16 * state.uiScale)}px system-ui`;
+  ctx.fillText('Hold tight — the grove is folding into a new song.', w / 2, h * 0.24 + 34);
+  ctx.restore();
 }
 
 function panel(x, y, w, h) {
@@ -793,6 +985,8 @@ function loop(now) {
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', event => {
   keys.add(event.code);
+  if (event.code === 'Escape' || event.code === 'KeyM') toggleMenu();
+  if (/^Digit[1-4]$/.test(event.code)) equipWeapon(Number(event.code.slice(-1)));
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) event.preventDefault();
 });
 window.addEventListener('keyup', event => keys.delete(event.code));
@@ -803,7 +997,10 @@ window.addEventListener('pointerup', () => { pointer.down = false; });
 addButtonAction(startBtn, resetGame);
 addButtonAction(restartBtn, resetGame);
 addButtonAction(howBtn, () => howPanel.classList.remove('hidden'));
+addButtonAction(menuBtn, () => toggleMenu(true));
+addButtonAction(closeMenu, () => toggleMenu(false));
 addButtonAction(closeHow, () => howPanel.classList.add('hidden'));
+scaleButtons.forEach(button => addButtonAction(button, () => setUiScale(Number(button.dataset.scale))));
 
 try {
   resize();

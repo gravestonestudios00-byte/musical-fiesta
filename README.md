@@ -17,6 +17,12 @@ npm start
 - Aim: mouse or Chromebook touchpad
 - Dash: Space
 - Interact / sail onward: E
+- Swap weapons: 1–4 after unlocking relic weapons
+- Game menu / HUD scale: M or Esc
+
+## New features
+
+The campaign now includes unlockable weapon relics (Comet Chakram, Nova Beam, and Meteor Mortar), a Game Menu with HUD scaling, a weapon readout in the HUD, and an animated sailing transition when moving between groves.
 
 ## Campaign scope
 
