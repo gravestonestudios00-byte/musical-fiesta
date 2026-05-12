@@ -22,7 +22,7 @@ npm start
 
 ## New features
 
-The campaign now includes unlockable weapon relics (Comet Chakram, Nova Beam, and Meteor Mortar), a Game Menu with HUD scaling, a weapon readout in the HUD, and an animated sailing transition when moving between groves.
+The campaign now includes a full mobile-RPG style command menu with hero stats, resources, equipment slots, map preview, and HUD scaling. It also adds unlockable weapon relics (Comet Chakram, Nova Beam, and Meteor Mortar), a weapon readout in the HUD, and a rebuilt sailing sequence with a festival skiff, island fly-by, progress bar, and safer transition handling between groves.
 
 ## Campaign scope
 

@@ -29,23 +29,59 @@
         </div>
       </section>
 
-      <section id="menuPanel" class="overlay side-panel menu-panel hidden" aria-live="polite">
-        <h2>Game menu</h2>
-        <p class="panel-copy">Tune the HUD size, review weapons, and jump back into the festival. Press <b>M</b> or <b>Esc</b> in-game to reopen this menu.</p>
-        <div class="setting-row">
-          <span>HUD scale</span>
-          <div class="segmented">
-            <button class="scaleBtn ghost" type="button" data-scale="0.85">Small</button>
-            <button class="scaleBtn ghost" type="button" data-scale="1">Normal</button>
-            <button class="scaleBtn ghost" type="button" data-scale="1.18">Large</button>
+      <section id="menuPanel" class="overlay menu-panel hidden" aria-live="polite">
+        <div class="menu-phone">
+          <header class="menu-topbar">
+            <div>
+              <p class="eyebrow">Festival Command</p>
+              <h2>Chrono Loadout</h2>
+            </div>
+            <button id="closeMenu" class="ghost icon-button" type="button" aria-label="Close menu">×</button>
+          </header>
+
+          <div class="resource-row" aria-label="Player resources">
+            <span>✦ <b id="menuSparkCount">0</b></span>
+            <span>☾ <b id="menuGroveCount">0/8</b></span>
+            <span>⚔ <b id="menuDefeatCount">0</b></span>
+          </div>
+
+          <div class="menu-grid">
+            <article class="hero-card">
+              <div class="hero-orbit">
+                <div class="hero-avatar">✦</div>
+                <span></span><span></span><span></span>
+              </div>
+              <h3>Sparkkeeper</h3>
+              <p id="menuCurrentZone">Lantern Meadow</p>
+              <div class="stat-stack" id="menuStats"></div>
+            </article>
+
+            <article class="loadout-card">
+              <div class="card-heading">
+                <span>My Equipment</span>
+                <small>Press 1–4</small>
+              </div>
+              <div id="menuWeaponGrid" class="equipment-grid"></div>
+            </article>
+
+            <article class="map-card">
+              <div class="stage-banner" id="menuStageName">1. Lantern Meadow</div>
+              <div class="island-preview" id="menuIslandPreview">
+                <span></span><span></span><span></span>
+              </div>
+              <p id="menuStageCopy">Gather sparks, tune sentinels, and sail onward.</p>
+              <div class="setting-row compact">
+                <span>HUD scale</span>
+                <div class="segmented">
+                  <button class="scaleBtn ghost" type="button" data-scale="0.85">S</button>
+                  <button class="scaleBtn ghost" type="button" data-scale="1">M</button>
+                  <button class="scaleBtn ghost" type="button" data-scale="1.18">L</button>
+                </div>
+              </div>
+              <button id="menuStartBtn" class="primary" type="button">Play / Resume</button>
+            </article>
           </div>
         </div>
-        <div class="weapon-preview">
-          <strong>Weapons</strong>
-          <span>1 Starbow • 2 Chakram • 3 Nova Beam • 4 Meteor Mortar</span>
-          <small>New weapons appear as relic rewards during the campaign.</small>
-        </div>
-        <button id="closeMenu" class="primary" type="button">Back to Game</button>
       </section>
 
       <section id="howPanel" class="overlay side-panel hidden" aria-live="polite">

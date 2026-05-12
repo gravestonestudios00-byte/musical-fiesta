@@ -7,7 +7,16 @@ const howBtn = document.querySelector('#howBtn');
 const menuBtn = document.querySelector('#menuBtn');
 const menuPanel = document.querySelector('#menuPanel');
 const closeMenu = document.querySelector('#closeMenu');
+const menuStartBtn = document.querySelector('#menuStartBtn');
 const scaleButtons = document.querySelectorAll('.scaleBtn');
+const menuSparkCount = document.querySelector('#menuSparkCount');
+const menuGroveCount = document.querySelector('#menuGroveCount');
+const menuDefeatCount = document.querySelector('#menuDefeatCount');
+const menuCurrentZone = document.querySelector('#menuCurrentZone');
+const menuStats = document.querySelector('#menuStats');
+const menuWeaponGrid = document.querySelector('#menuWeaponGrid');
+const menuStageName = document.querySelector('#menuStageName');
+const menuStageCopy = document.querySelector('#menuStageCopy');
 const howPanel = document.querySelector('#howPanel');
 const closeHow = document.querySelector('#closeHow');
 const levelUp = document.querySelector('#levelUp');
@@ -69,10 +78,10 @@ function addButtonAction(button, action) {
 }
 
 const weaponCatalog = {
-  starbow: { name: 'Starbow', short: 'Bow', hue: 48, cooldown: 0.22, speed: 670, damage: 1, size: 6, life: 1.05, unlock: 'Always ready: balanced sparkle arrows.' },
-  chakram: { name: 'Comet Chakram', short: 'Ring', hue: 180, cooldown: 0.42, speed: 460, damage: 0.72, size: 10, life: 1.55, pierce: 3, unlock: 'Pierces crowds in a wide glowing arc.' },
-  beam: { name: 'Nova Beam', short: 'Beam', hue: 300, cooldown: 0.34, speed: 820, damage: 0.9, size: 4, life: 0.72, beam: true, unlock: 'Rapid laser notes for precise players.' },
-  mortar: { name: 'Meteor Mortar', short: 'Bomb', hue: 22, cooldown: 0.78, speed: 360, damage: 1.75, size: 12, life: 1.25, explosive: true, unlock: 'Slow arcing shots that burst on impact.' }
+  starbow: { name: 'Starbow', short: 'Bow', icon: '🏹', hue: 48, cooldown: 0.22, speed: 670, damage: 1, size: 6, life: 1.05, unlock: 'Balanced sparkle arrows.' },
+  chakram: { name: 'Comet Chakram', short: 'Ring', icon: '💠', hue: 180, cooldown: 0.42, speed: 460, damage: 0.72, size: 10, life: 1.55, pierce: 3, unlock: 'Pierces crowds in a wide arc.' },
+  beam: { name: 'Nova Beam', short: 'Beam', icon: '🔮', hue: 300, cooldown: 0.34, speed: 820, damage: 0.9, size: 4, life: 0.72, beam: true, unlock: 'Fast laser notes for precision.' },
+  mortar: { name: 'Meteor Mortar', short: 'Bomb', icon: '☄️', hue: 22, cooldown: 0.78, speed: 360, damage: 1.75, size: 12, life: 1.25, explosive: true, unlock: 'Arcing shells that burst.' }
 };
 
 const zones = [
@@ -161,11 +170,43 @@ function unlockWeapon(s, key) {
 function setUiScale(scale) {
   state.uiScale = scale;
   document.documentElement.style.setProperty('--ui-scale', scale);
+  refreshMenuPanel();
 }
 
 function toggleMenu(forceOpen = null) {
   const shouldOpen = forceOpen ?? menuPanel.classList.contains('hidden');
+  refreshMenuPanel();
   menuPanel.classList.toggle('hidden', !shouldOpen);
+}
+
+function refreshMenuPanel() {
+  const p = state.player || newPlayer();
+  const zone = zones[state.zone] || zones[0];
+  if (menuSparkCount) menuSparkCount.textContent = Math.floor((state.quest?.sparks || 0) + (state.quest?.deposited || 0));
+  if (menuGroveCount) menuGroveCount.textContent = `${state.stats.rescued}/${zones.length}`;
+  if (menuDefeatCount) menuDefeatCount.textContent = state.stats.defeated;
+  if (menuCurrentZone) menuCurrentZone.textContent = zone.name;
+  if (menuStageName) menuStageName.textContent = `${state.zone + 1}. ${zone.name}`;
+  if (menuStageCopy) menuStageCopy.textContent = `${zone.goal} sparks • ${zone.enemies} sentinels • Boss: ${zone.boss}`;
+  if (menuStats) {
+    menuStats.innerHTML = [
+      ['Health', `${Math.ceil(p.hp)}/${p.maxHp}`],
+      ['Level', p.level],
+      ['Damage', Math.round(p.damage)],
+      ['Speed', Math.round(p.speed)]
+    ].map(([label, value]) => `<div class="stat-pill"><span>${label}</span><b>${value}</b></div>`).join('');
+  }
+  if (menuWeaponGrid) {
+    menuWeaponGrid.innerHTML = Object.entries(weaponCatalog).map(([key, weapon], index) => {
+      const unlocked = p.unlockedWeapons.includes(key);
+      const active = p.weapon === key;
+      return `<button class="equipment-slot ${unlocked ? '' : 'locked'} ${active ? 'active' : ''}" type="button" data-weapon-slot="${index + 1}"><i class="slot-icon">${weapon.icon}</i><b>${index + 1}. ${weapon.short}</b><span>${unlocked ? weapon.unlock : 'Locked relic'}</span></button>`;
+    }).join('');
+    menuWeaponGrid.querySelectorAll('[data-weapon-slot]').forEach(button => addButtonAction(button, () => {
+      equipWeapon(Number(button.dataset.weaponSlot));
+      refreshMenuPanel();
+    }));
+  }
 }
 
 function equipWeapon(slot) {
@@ -178,6 +219,7 @@ function equipWeapon(slot) {
     state.message = `${weaponCatalog[key].name} is locked. Pick its relic to unlock it.`;
   }
   state.messageTimer = 2.4;
+  refreshMenuPanel();
 }
 
 
@@ -216,7 +258,9 @@ function resetGame() {
 }
 
 function enterZone(index) {
+  state.mode = 'playing';
   state.transition = null;
+  state.sailBits = [];
   state.zone = index;
   state.quest = { sparks: 0, deposited: 0, defeated: 0, bossReady: false, bossDefeated: false };
   state.player.x = 0;
@@ -224,6 +268,7 @@ function enterZone(index) {
   state.projectiles = [];
   state.enemies = [];
   state.pickups = [];
+  state.sailBits = [];
   state.flowers = [];
   state.portals = [{ x: 0, y: 0, r: 58, pulse: 0 }];
   const zone = zones[index];
@@ -377,35 +422,40 @@ function updateSailTransition(dt) {
   const transition = state.transition;
   if (!transition) return;
   transition.t += dt;
+  transition.spark += dt * 28;
   const p = state.player;
   const progress = clamp(transition.t / transition.duration, 0, 1);
-  const orbit = transition.t * 6;
-  p.x = Math.cos(orbit) * (80 + progress * 280);
-  p.y = -progress * 520 + Math.sin(orbit * 0.7) * 80;
-  state.shake = Math.max(state.shake, Math.sin(progress * Math.PI) * 8);
-  for (let i = 0; i < 8; i += 1) {
+  const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+  p.x = transition.origin.x + Math.sin(ease * Math.PI * 2) * 42;
+  p.y = transition.origin.y - Math.sin(ease * Math.PI) * 96;
+  state.shake = Math.max(state.shake, Math.sin(progress * Math.PI) * 5);
+
+  while (transition.spark >= 1) {
+    transition.spark -= 1;
     state.sailBits.push({
-      x: p.x + rand(-44, 44),
-      y: p.y + rand(18, 74),
-      vx: rand(-70, 70),
-      vy: rand(80, 180),
-      life: rand(0.45, 0.9),
-      max: 0.9,
-      hue: zones[transition.from].hue + rand(-20, 40),
+      x: p.x + rand(-70, 70),
+      y: p.y + rand(28, 96),
+      vx: rand(-55, 55),
+      vy: rand(65, 155),
+      life: rand(0.55, 1.15),
+      max: 1.15,
+      hue: zones[transition.from].hue + rand(-20, 70),
       size: rand(2, 8)
     });
   }
+  if (state.sailBits.length > 360) state.sailBits.splice(0, state.sailBits.length - 360);
   if (progress >= 1) enterZone(transition.to);
 }
 
 function startSailTransition(nextZone) {
   state.mode = 'transition';
-  state.transition = { from: state.zone, to: nextZone, t: 0, duration: 3.2 };
+  state.transition = { from: state.zone, to: nextZone, t: 0, duration: 3.8, spark: 0, origin: { x: state.player.x, y: state.player.y } };
   state.message = `Sailing to ${zones[nextZone].name}...`;
   state.messageTimer = 3.2;
   state.projectiles = [];
   state.enemies = [];
   state.pickups = [];
+  state.sailBits = [];
   addParticles(state.player.x, state.player.y, zones[state.zone].hue, 80, 1.6);
 }
 
@@ -895,31 +945,98 @@ function drawHud(w, h) {
 
 function drawSailOverlay(w, h) {
   if (state.mode !== 'transition' || !state.transition) return;
-  const progress = clamp(state.transition.t / state.transition.duration, 0, 1);
+  const transition = state.transition;
+  const progress = clamp(transition.t / transition.duration, 0, 1);
+  const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+  const fromHue = zones[transition.from].hue;
+  const toHue = zones[transition.to].hue;
+
   ctx.save();
-  const glow = ctx.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, Math.max(w, h));
-  glow.addColorStop(0, `hsla(${zones[state.transition.to].hue}, 95%, 62%, ${0.16 + progress * 0.12})`);
-  glow.addColorStop(1, `rgba(2, 6, 18, ${0.28 + Math.sin(progress * Math.PI) * 0.32})`);
+  const glow = ctx.createLinearGradient(0, 0, w, h);
+  glow.addColorStop(0, `hsla(${fromHue}, 92%, 18%, ${0.25 + progress * 0.35})`);
+  glow.addColorStop(0.48, `hsla(${toHue}, 95%, 52%, ${0.18 + Math.sin(progress * Math.PI) * 0.32})`);
+  glow.addColorStop(1, `rgba(2, 6, 18, ${0.32 + Math.sin(progress * Math.PI) * 0.32})`);
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, w, h);
-  ctx.translate(w / 2, h / 2);
-  ctx.rotate(progress * TAU * 1.2);
-  ctx.strokeStyle = `hsla(${zones[state.transition.to].hue}, 95%, 70%, 0.75)`;
-  ctx.lineWidth = 5;
-  for (let i = 0; i < 4; i += 1) {
+
+  for (let i = 0; i < 90; i += 1) {
+    const x = (i * 97 + state.time * 180) % (w + 160) - 80;
+    const y = (i * 53) % h;
+    ctx.fillStyle = `hsla(${i % 2 ? fromHue : toHue}, 95%, 75%, ${0.16 + (i % 5) * 0.04})`;
     ctx.beginPath();
-    ctx.arc(0, 0, 90 + i * 55 + Math.sin(state.time * 8 + i) * 8, progress * TAU, progress * TAU + Math.PI * 1.1);
-    ctx.stroke();
+    ctx.arc(x, y, 1.2 + (i % 4), 0, TAU);
+    ctx.fill();
   }
+
+  drawMenuIsland(w * (0.18 - ease * 0.22), h * 0.66, fromHue, 0.85 - ease * 0.55);
+  drawMenuIsland(w * (0.82 + (1 - ease) * 0.22), h * 0.58, toHue, 0.35 + ease * 0.65);
+
+  const shipX = w * (0.18 + ease * 0.64);
+  const shipY = h * (0.66 - Math.sin(progress * Math.PI) * 0.22);
+  ctx.translate(shipX, shipY);
+  ctx.rotate(Math.sin(progress * Math.PI * 2) * 0.08);
+  ctx.shadowBlur = 40;
+  ctx.shadowColor = `hsl(${toHue} 95% 68%)`;
+  ctx.fillStyle = '#291a34';
+  roundRect(-72, 8, 144, 34, 14);
+  ctx.fill();
+  ctx.fillStyle = `hsl(${toHue} 90% 62%)`;
+  ctx.beginPath();
+  ctx.moveTo(-48, 8);
+  ctx.lineTo(0, -72);
+  ctx.lineTo(52, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(0, 8);
+  ctx.lineTo(0, -82);
+  ctx.stroke();
+  ctx.fillStyle = '#ffd36b';
+  ctx.beginPath();
+  ctx.arc(0, 8, 18 + Math.sin(state.time * 12) * 3, 0, TAU);
+  ctx.fill();
   ctx.restore();
+
   ctx.save();
   ctx.textAlign = 'center';
   ctx.fillStyle = '#edf4ff';
-  ctx.font = `900 ${Math.max(22, 34 * state.uiScale)}px system-ui`;
-  ctx.fillText(`Sailing to ${zones[state.transition.to].name}`, w / 2, h * 0.24);
+  ctx.font = `900 ${Math.max(24, 38 * state.uiScale)}px system-ui`;
+  ctx.fillText(`Sailing to ${zones[transition.to].name}`, w / 2, h * 0.18);
   ctx.fillStyle = '#ffd36b';
-  ctx.font = `800 ${Math.max(14, 16 * state.uiScale)}px system-ui`;
-  ctx.fillText('Hold tight — the grove is folding into a new song.', w / 2, h * 0.24 + 34);
+  ctx.font = `800 ${Math.max(14, 17 * state.uiScale)}px system-ui`;
+  ctx.fillText('The festival skiff rides a chrono current to the next grove.', w / 2, h * 0.18 + 38);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  roundRect(w / 2 - 150, h * 0.18 + 62, 300, 10, 999);
+  ctx.fill();
+  ctx.fillStyle = `hsl(${toHue} 95% 65%)`;
+  roundRect(w / 2 - 150, h * 0.18 + 62, 300 * progress, 10, 999);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawMenuIsland(x, y, hue, alpha) {
+  ctx.save();
+  ctx.globalAlpha = clamp(alpha, 0, 1);
+  ctx.translate(x, y);
+  ctx.fillStyle = `hsl(${hue} 48% 32%)`;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 120, 42, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = `hsl(${hue} 70% 62%)`;
+  ctx.beginPath();
+  ctx.ellipse(0, -14, 92, 34, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#eaffff';
+  for (let i = -1; i <= 1; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(i * 42 - 18, -24);
+    ctx.lineTo(i * 42, -70 - Math.abs(i) * 12);
+    ctx.lineTo(i * 42 + 22, -24);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -999,6 +1116,10 @@ addButtonAction(restartBtn, resetGame);
 addButtonAction(howBtn, () => howPanel.classList.remove('hidden'));
 addButtonAction(menuBtn, () => toggleMenu(true));
 addButtonAction(closeMenu, () => toggleMenu(false));
+addButtonAction(menuStartBtn, () => {
+  if (state.mode === 'menu' || !state.player) resetGame();
+  else toggleMenu(false);
+});
 addButtonAction(closeHow, () => howPanel.classList.add('hidden'));
 scaleButtons.forEach(button => addButtonAction(button, () => setUiScale(Number(button.dataset.scale))));
 
