@@ -53,8 +53,22 @@
           <button id="restartBtn" class="primary">Play Again</button>
         </div>
       </section>
+
+      <section id="bootError" class="overlay screen-card error-card hidden" role="alert">
+        <div class="logo-mark">!</div>
+        <h1>Game could not start</h1>
+        <p id="bootErrorText" class="lede">Refresh the page or open it in Chrome.</p>
+      </section>
+
+      <noscript>
+        <section class="overlay screen-card error-card">
+          <div class="logo-mark">!</div>
+          <h1>JavaScript is off</h1>
+          <p class="lede">Chrono Grove needs JavaScript enabled to run.</p>
+        </section>
+      </noscript>
     </main>
 
-    <script type="module" src="src/game.js"></script>
+    <script defer src="src/game.js"></script>
   </body>
 </html>

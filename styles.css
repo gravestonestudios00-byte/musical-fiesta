@@ -202,6 +202,15 @@ h2 {
 .choice-card strong { display: block; margin-bottom: 0.4rem; color: var(--gold); }
 .choice-card span { color: var(--muted); font-size: 0.92rem; line-height: 1.35; }
 
+.error-card {
+  z-index: 10;
+  border-color: rgba(255, 111, 145, 0.38);
+}
+
+.error-card .logo-mark {
+  background: radial-gradient(circle, #ffb1c8, #ff4f7b);
+}
+
 .hidden { display: none !important; }
 
 @media (max-width: 760px) {

@@ -1,5 +1,5 @@
 const canvas = document.querySelector('#game');
-const ctx = canvas.getContext('2d');
+const ctx = canvas?.getContext?.('2d');
 
 const startScreen = document.querySelector('#startScreen');
 const startBtn = document.querySelector('#startBtn');
@@ -12,6 +12,8 @@ const gameOver = document.querySelector('#gameOver');
 const endingTitle = document.querySelector('#endingTitle');
 const endingText = document.querySelector('#endingText');
 const restartBtn = document.querySelector('#restartBtn');
+const bootError = document.querySelector('#bootError');
+const bootErrorText = document.querySelector('#bootErrorText');
 
 const TAU = Math.PI * 2;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -21,6 +23,24 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const keys = new Set();
 const pointer = { x: 640, y: 360, down: false };
 let viewScale = 1;
+let fatalError = false;
+
+function showBootError(error) {
+  fatalError = true;
+  console.error(error);
+  const message = error instanceof Error ? error.message : String(error);
+  if (bootErrorText) {
+    bootErrorText.textContent = `Chrome reported: ${message}. Try refreshing, or run through a local server instead of a file preview.`;
+  }
+  if (bootError) bootError.classList.remove('hidden');
+}
+
+if (!canvas || !ctx) {
+  showBootError(new Error('Canvas is not available in this browser view'));
+}
+
+window.addEventListener('error', event => showBootError(event.error || event.message));
+window.addEventListener('unhandledrejection', event => showBootError(event.reason || 'Unhandled promise rejection'));
 
 const zones = [
   { name: 'Lantern Meadow', hue: 170, goal: 80, enemies: 12, boss: 'Moss Tuba' },
@@ -90,6 +110,7 @@ function newPlayer() {
 }
 
 function resize() {
+  if (fatalError) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.floor(window.innerWidth * dpr);
   canvas.height = Math.floor(window.innerHeight * dpr);
@@ -100,6 +121,7 @@ function resize() {
 }
 
 function resetGame() {
+  if (fatalError) return;
   state.mode = 'playing';
   state.time = 0;
   state.zone = 0;
@@ -217,7 +239,7 @@ function enemyShoot(enemy) {
 }
 
 function update(dt) {
-  if (state.mode !== 'playing') return;
+  if (fatalError || state.mode !== 'playing') return;
   state.time += dt;
   state.stats.minutes = Math.floor(state.time / 60);
   state.messageTimer = Math.max(0, state.messageTimer - dt);
@@ -467,6 +489,7 @@ function getCamera() {
 }
 
 function draw() {
+  if (fatalError) return;
   const w = window.innerWidth;
   const h = window.innerHeight;
   ctx.clearRect(0, 0, w, h);
@@ -732,11 +755,16 @@ function wrapText(text, x, y, maxWidth, lineHeight) {
 
 let last = performance.now();
 function loop(now) {
-  const dt = Math.min(0.033, (now - last) / 1000);
-  last = now;
-  update(dt);
-  draw();
-  requestAnimationFrame(loop);
+  if (fatalError) return;
+  try {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  } catch (error) {
+    showBootError(error);
+  }
 }
 
 window.addEventListener('resize', resize);
@@ -745,8 +773,8 @@ window.addEventListener('keydown', event => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) event.preventDefault();
 });
 window.addEventListener('keyup', event => keys.delete(event.code));
-canvas.addEventListener('pointermove', event => { pointer.x = event.clientX; pointer.y = event.clientY; });
-canvas.addEventListener('pointerdown', event => { pointer.down = true; pointer.x = event.clientX; pointer.y = event.clientY; });
+canvas?.addEventListener('pointermove', event => { pointer.x = event.clientX; pointer.y = event.clientY; });
+canvas?.addEventListener('pointerdown', event => { pointer.down = true; pointer.x = event.clientX; pointer.y = event.clientY; });
 window.addEventListener('pointerup', () => { pointer.down = false; });
 
 startBtn.addEventListener('click', resetGame);
@@ -754,5 +782,9 @@ restartBtn.addEventListener('click', resetGame);
 howBtn.addEventListener('click', () => howPanel.classList.remove('hidden'));
 closeHow.addEventListener('click', () => howPanel.classList.add('hidden'));
 
-resize();
-requestAnimationFrame(loop);
+try {
+  resize();
+  requestAnimationFrame(loop);
+} catch (error) {
+  showBootError(error);
+}
