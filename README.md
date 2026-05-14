@@ -1,1 +1,34 @@
-# musical-fiesta
+# Chrono Grove: Festival of Sparks
+
+A large, polished browser action-adventure game designed to run smoothly on Chrome OS and desktop Chrome.
+
+## Play
+
+Open `index.html` directly in Chrome, or run a local dev server:
+
+```bash
+npm install
+npm start
+```
+
+## Controls
+
+- Move: WASD or arrow keys
+- Aim: mouse or Chromebook touchpad
+- Dash: Space
+- Interact / sail onward: E
+- Swap weapons: 1–4 after unlocking relic weapons
+- Game menu / HUD scale: M or Esc
+
+## New features
+
+The campaign now includes a full mobile-RPG style command menu with hero stats, resources, equipment slots, map preview, and HUD scaling. It also adds unlockable weapon relics (Comet Chakram, Nova Beam, and Meteor Mortar), a weapon readout in the HUD, and a rebuilt sailing sequence with a festival skiff, island fly-by, progress bar, and safer transition handling between groves.
+
+## Campaign scope
+
+The game includes eight themed groves, escalating enemy counts, boss encounters, spark collection and deposit goals, XP levels, randomized relic upgrades, and a final win state. A full campaign is paced for about 40–55 minutes depending on player skill and upgrade choices.
+
+
+## Troubleshooting
+
+If you see a blank or white screen, refresh in Chrome or run `npm start` and open `http://localhost:5173`. The page includes an on-screen startup error panel for browser runtime errors.
